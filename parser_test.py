@@ -20,22 +20,6 @@ def p_goal_symbol(p):
     '''goal_symbol : compilation'''
     p[0] = ('goal-symbol', p[1])
 
-def p_pragma(p):
-    '''pragma  : PRAGMA IDENTIFIER SEMICOLON
-    | PRAGMA simple_name LPAREN pragma_arg_s RPAREN SEMICOLON'''
-    pass
-def p_pragma_arg_s(p):
-    '''pragma_arg_s : pragma_arg
-    | pragma_arg_s COMMA pragma_arg'''
-    pass
-def p_pragma_arg(p):
-    '''pragma_arg : expression
-    | simple_name ARROW expression'''
-    pass
-def p_pragma_s(p):
-    '''pragma_s :
-    | pragma_s pragma'''
-    pass
 def p_decl(p):
     '''decl    : object_decl
     | number_decl
@@ -208,7 +192,7 @@ def p_record_type(p):
     '''record_type : tagged_opt limited_opt record_def'''
     pass
 def p_record_def(p):
-    '''record_def : RECORD pragma_s comp_list END RECORD
+    '''record_def : RECORD   comp_list END RECORD
     | NULL RECORD'''
     pass
 def p_tagged_opt(p):
@@ -218,16 +202,16 @@ def p_tagged_opt(p):
     pass
 def p_comp_list(p):
     '''comp_list : comp_decl_s variant_part_opt
-    | variant_part pragma_s
-    | NULL SEMICOLON pragma_s'''
+    | variant_part  
+    | NULL SEMICOLON  '''
     pass
 def p_comp_decl_s(p):
     '''comp_decl_s : comp_decl
-    | comp_decl_s pragma_s comp_decl'''
+    | comp_decl_s   comp_decl'''
     pass
 def p_variant_part_opt(p):
-    '''variant_part_opt : pragma_s
-    | pragma_s variant_part pragma_s'''
+    '''variant_part_opt :  
+    |   variant_part  '''
     pass
 def p_comp_decl(p):
     '''comp_decl : def_id_s COLON component_subtype_def init_opt SEMICOLON
@@ -249,14 +233,14 @@ def p_access_opt(p):
     | ACCESS'''
     pass
 def p_variant_part(p):
-    '''variant_part : CASE simple_name IS pragma_s variant_s END CASE SEMICOLON'''
+    '''variant_part : CASE simple_name IS   variant_s END CASE SEMICOLON'''
     pass
 def p_variant_s(p):
     '''variant_s : variant
     | variant_s variant'''
     pass
 def p_variant(p):
-    '''variant : WHEN choice_s ARROW pragma_s comp_list'''
+    '''variant : WHEN choice_s ARROW   comp_list'''
     pass
 def p_choice_s(p):
     '''choice_s : choice
@@ -298,7 +282,7 @@ def p_decl_item(p):
     '''decl_item : decl
     | use_clause
     | rep_spec
-    | pragma'''
+    '''
     pass
 def p_decl_item_or_body_s1(p):
     '''decl_item_or_body_s1 : decl_item_or_body
@@ -480,8 +464,7 @@ def p_statement(p):
     pass
 def p_unlabeled(p):
     '''unlabeled : simple_stmt
-    | compound_stmt
-    | pragma'''
+    | compound_stmt'''
     pass
 def p_simple_stmt(p):
     '''simple_stmt : NULL_stmt
@@ -535,7 +518,7 @@ def p_else_opt(p):
     | ELSE statement_s'''
     pass
 def p_case_stmt(p):
-    '''case_stmt : case_hdr pragma_s alternative_s END CASE SEMICOLON'''
+    '''case_stmt : case_hdr   alternative_s END CASE SEMICOLON'''
     pass
 def p_case_hdr(p):
     '''case_hdr : CASE expression IS'''
@@ -744,8 +727,7 @@ def p_prot_op_decl_s(p):
 def p_prot_op_decl(p):
     '''prot_op_decl : entry_decl
     | subprog_spec SEMICOLON
-    | rep_spec
-    | pragma'''
+    | rep_spec'''
     pass
 def p_prot_elem_decl_s(p):
     '''prot_elem_decl_s : 
@@ -759,8 +741,8 @@ def p_prot_body(p):
     '''prot_body : PROTECTED BODY simple_name IS prot_op_body_s END id_opt SEMICOLON'''
     pass
 def p_prot_op_body_s(p):
-    '''prot_op_body_s : pragma_s
-    | prot_op_body_s prot_op_body pragma_s'''
+    '''prot_op_body_s :  
+    | prot_op_body_s prot_op_body  '''
     pass
 def p_prot_op_body(p):
     '''prot_op_body : entry_body
@@ -768,8 +750,8 @@ def p_prot_op_body(p):
     | subprog_spec SEMICOLON'''
     pass
 def p_entry_decl_s(p):
-    '''entry_decl_s : pragma_s
-    | entry_decl_s entry_decl pragma_s'''
+    '''entry_decl_s :  
+    | entry_decl_s entry_decl  '''
     pass
 def p_entry_decl(p):
     '''entry_decl : ENTRY IDENTIFIER formal_part_opt SEMICOLON
@@ -785,7 +767,7 @@ def p_entry_body_part(p):
     pass
 def p_rep_spec_s(p):
     '''rep_spec_s :
-    | rep_spec_s rep_spec pragma_s'''
+    | rep_spec_s rep_spec  '''
     pass
 def p_entry_call(p):
     '''entry_call : procedure_call'''
@@ -866,9 +848,9 @@ def p_compilation(p):
 def p_comp_unit(p):
     '''comp_unit : context_spec private_opt unit
     | private_opt unit '''
-    if len(p) == 5:
-        p[0] = ('comp-unit', p[1], p[2], p[3], p[4])
-    else: p[0] = ('comp-unit', p[1], p[2], p[3])
+    if len(p) == 4:
+        p[0] = ('comp-unit', p[1], p[2], p[3])
+    else: p[0] = ('comp-unit', p[1], p[2])
     
 def p_private_opt(p):
     '''private_opt :
@@ -877,7 +859,7 @@ def p_private_opt(p):
 def p_context_spec(p):
     '''context_spec : with_clause use_clause_opt
     | context_spec with_clause use_clause_opt
-    | context_spec pragma'''
+    | context_spec '''
     pass
 def p_with_clause(p):
     '''with_clause : WITH c_name_list SEMICOLON'''
