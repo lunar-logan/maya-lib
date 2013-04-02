@@ -11,6 +11,7 @@ using namespace INSTLIB;
 
 //Define the limit here
 const long LIMIT = 1000000000;
+const UINT16 LRU_LIMIT = 2048;
 
 //Table Parameters
 const int BHR_SIZE = 10; // 10-bit BHR
@@ -58,6 +59,7 @@ typedef struct _BTB {
 	UINT32 tag;
 	UINT32 target;
 	INT8 valid; //Valid bits
+	UINT8 lruBits;
 } BTB, *ptrBTB;
 BTB BranchTargetBuffer[BTB_SET_SIZE][BTB_K_SIZE]; //4-way set(256) associative
 
@@ -216,21 +218,36 @@ VOID IndirectBranch(ADDRINT ip, BOOL taken, ADDRINT target) {
 		exit(0);
 	}
 	UINT8 setIndex = (ip^globalBranchHistory)%BTB_SET_SIZE; //LocAL modulo hash routine
-	UINT8 assocIndex = UINT8(ip%BTB_K_SIZE);
-	if(BranchTargetBuffer[setIndex][assocIndex].target != 0) {
+	int lru = 0;
+	UINT16 lruMin = LRU_LIMIT + 4;
+	BOOL found = FALSE;
+	for(int assocIndex = 0; assocIndex < 4; assocIndex ++ ){
+		if(BranchTargetBuffer[setIndex][assocIndex].target != 0) {
 		//Branch exists
-		if(BranchTargetBuffer[setIndex][assocIndex].target != target && taken) {
-			_mispredicitionBTBT2Count ++;
-			//should use LRU here ??
-			BranchTargetBuffer[setIndex][assocIndex].target = target;
-			BranchTargetBuffer[setIndex][assocIndex].tag = ip;
+			UINT32 tag = BranchTargetBuffer[setIndex][assocIndex].tag;
+			UINT32 tgt = BranchTargetBuffer[setIndex][assocIndex].target;
+			if( tag == ip && (tgt != target || !taken)) {
+				_mispredicitionBTBT2Count ++;
+				UINT8 ru = BranchTargetBuffer[setIndex][assocIndex].lruBits;
+				if (ru > LRU_LIMIT) { ru = 0; }
+				else { ru += 1; }
+				BranchTargetBuffer[setIndex][assocIndex].lruBits = ru;
+				found = TRUE;
+				break;
+			}
 		}
-	} else {
-		//Branch do not exist
-		if(taken) {
-			BranchTargetBuffer[setIndex][assocIndex].target = target;
-			BranchTargetBuffer[setIndex][assocIndex].tag = ip;
+	}
+	if(!found) {
+		for(int i=0; i<4; i++) {
+			UINT8 lruBits = BranchTargetBuffer[setIndex][i].lruBits;
+			if(lruBits < lruMin ) { 
+				lruMin = lruBits;
+				lru = i;
+			}
 		}
+		BranchTargetBuffer[setIndex][lru].lruBits = 0;
+		BranchTargetBuffer[setIndex][lru].tag = ip;
+		BranchTargetBuffer[setIndex][lru].target = target;
 	}
 }
 
@@ -363,6 +380,7 @@ void init_TABLES() {
 			BranchTargetBuffer[i][j].target = 0;
 			BranchTargetBuffer[i][j].tag = 0;
 			BranchTargetBuffer[i][j].valid = 0;
+			BranchTargetBuffer[i][j].lruBits = 0;
 		}
 	}
 }
