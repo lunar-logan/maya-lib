@@ -61,7 +61,8 @@ typedef struct _BTB {
 	INT8 valid; //Valid bits
 	UINT8 lruBits;
 } BTB, *ptrBTB;
-BTB BranchTargetBuffer[BTB_SET_SIZE][BTB_K_SIZE]; //4-way set(256) associative
+BTB BranchTargetBuffer1[BTB_SET_SIZE][BTB_K_SIZE]; //4-way set(256) associative
+BTB BranchTargetBuffer2[BTB_SET_SIZE][BTB_K_SIZE]; //4-way set(256) associative
 
 //Some helper declarations
 LOCALVAR ofstream *outfile;
@@ -222,16 +223,16 @@ VOID IndirectBranch(ADDRINT ip, BOOL taken, ADDRINT target) {
 	UINT16 lruMin = LRU_LIMIT + 4;
 	BOOL found = FALSE;
 	for(int assocIndex = 0; assocIndex < 4; assocIndex ++ ){
-		if(BranchTargetBuffer[setIndex][assocIndex].target != 0) {
+		if(BranchTargetBuffer2[setIndex][assocIndex].target != 0) {
 		//Branch exists
-			UINT32 tag = BranchTargetBuffer[setIndex][assocIndex].tag;
-			UINT32 tgt = BranchTargetBuffer[setIndex][assocIndex].target;
+			UINT32 tag = BranchTargetBuffer2[setIndex][assocIndex].tag;
+			UINT32 tgt = BranchTargetBuffer2[setIndex][assocIndex].target;
 			if( tag == ip && (tgt != target || !taken)) {
 				_mispredicitionBTBT2Count ++;
-				UINT8 ru = BranchTargetBuffer[setIndex][assocIndex].lruBits;
+				UINT8 ru = BranchTargetBuffer2[setIndex][assocIndex].lruBits;
 				if (ru > LRU_LIMIT) { ru = 0; }
 				else { ru += 1; }
-				BranchTargetBuffer[setIndex][assocIndex].lruBits = ru;
+				BranchTargetBuffer2[setIndex][assocIndex].lruBits = ru;
 				found = TRUE;
 				break;
 			}
@@ -239,15 +240,48 @@ VOID IndirectBranch(ADDRINT ip, BOOL taken, ADDRINT target) {
 	}
 	if(!found) {
 		for(int i=0; i<4; i++) {
-			UINT8 lruBits = BranchTargetBuffer[setIndex][i].lruBits;
+			UINT8 lruBits = BranchTargetBuffer2[setIndex][i].lruBits;
 			if(lruBits < lruMin ) { 
 				lruMin = lruBits;
 				lru = i;
 			}
 		}
-		BranchTargetBuffer[setIndex][lru].lruBits = 0;
-		BranchTargetBuffer[setIndex][lru].tag = ip;
-		BranchTargetBuffer[setIndex][lru].target = target;
+		BranchTargetBuffer2[setIndex][lru].lruBits = 0;
+		BranchTargetBuffer2[setIndex][lru].tag = ip;
+		BranchTargetBuffer2[setIndex][lru].target = target;
+	}
+	//Type 1
+	setIndex = ip%BTB_SET_SIZE; //LocAL modulo hash routine
+	lru = 0;
+	lruMin = LRU_LIMIT + 4;
+	found = FALSE;
+	for(int assocIndex = 0; assocIndex < 4; assocIndex ++ ){
+		if(BranchTargetBuffer1[setIndex][assocIndex].target != 0) {
+		//Branch exists
+			UINT32 tag = BranchTargetBuffer1[setIndex][assocIndex].tag;
+			UINT32 tgt = BranchTargetBuffer1[setIndex][assocIndex].target;
+			if( tag == ip && (tgt != target || !taken)) {
+				_mispredicitionBTBT1Count ++;
+				UINT8 ru = BranchTargetBuffer1[setIndex][assocIndex].lruBits;
+				if (ru > LRU_LIMIT) { ru = 0; }
+				else { ru += 1; }
+				BranchTargetBuffer1[setIndex][assocIndex].lruBits = ru;
+				found = TRUE;
+				break;
+			}
+		}
+	}
+	if(!found) {
+		for(int i=0; i<4; i++) {
+			UINT8 lruBits = BranchTargetBuffer1[setIndex][i].lruBits;
+			if(lruBits < lruMin ) { 
+				lruMin = lruBits;
+				lru = i;
+			}
+		}
+		BranchTargetBuffer1[setIndex][lru].lruBits = 0;
+		BranchTargetBuffer1[setIndex][lru].tag = ip;
+		BranchTargetBuffer1[setIndex][lru].target = target;
 	}
 }
 
@@ -288,6 +322,12 @@ VOID Fini(INT32 code, VOID *v)
 	*outfile << "No. of Mispredictions # "<< _mispredicitionHybridCount << endl;
 	*outfile << "Accuracy # "<<(1.0 - _mispredicitionHybridCount/double(_condInstCount))*100.0 << "%" << endl;
 
+	//BTB Type 1
+	*outfile << endl << "Branch Target Buffer (Type 1) statistics" << endl;
+	*outfile << "No. of Indirect Branch Instructions # " << _indirectBranchCount << endl;
+	*outfile << "No. of Mispredictions # "<< _mispredicitionBTBT1Count << endl;
+	*outfile << "Accuracy # "<<(1.0 - _mispredicitionBTBT2Count/double(_indirectBranchCount))*100.0 << "%" << endl;
+	
 	//BTB Type 2
 	*outfile << endl << "Branch Target Buffer (Type 2) statistics" << endl;
 	*outfile << "No. of Indirect Branch Instructions # " << _indirectBranchCount << endl;
@@ -329,6 +369,12 @@ void PrematureExitRoutine() {
 	*outfile << "No. of Mispredictions # "<< _mispredicitionHybridCount << endl;
 	*outfile << "Accuracy # "<<(1.0 - _mispredicitionHybridCount/double(_condInstCount))*100.0 << "%" << endl;
 
+	//BTB Type 1
+	*outfile << endl << "Branch Target Buffer (Type 1) statistics" << endl;
+	*outfile << "No. of Indirect Branch Instructions # " << _indirectBranchCount << endl;
+	*outfile << "No. of Mispredictions # "<< _mispredicitionBTBT1Count << endl;
+	*outfile << "Accuracy # "<<(1.0 - _mispredicitionBTBT2Count/double(_indirectBranchCount))*100.0 << "%" << endl;
+	
 	//BTB Type 2
 	*outfile << endl << "Branch Target Buffer (Type 2) statistics" << endl;
 	*outfile << "No. of Indirect Branch Instructions # " << _indirectBranchCount << endl;
@@ -377,10 +423,18 @@ void init_TABLES() {
 	}
 	for(int i=0; i<BTB_SET_SIZE; i++) {
 		for(int j=0; j<BTB_K_SIZE; j++) {
-			BranchTargetBuffer[i][j].target = 0;
-			BranchTargetBuffer[i][j].tag = 0;
-			BranchTargetBuffer[i][j].valid = 0;
-			BranchTargetBuffer[i][j].lruBits = 0;
+			BranchTargetBuffer1[i][j].target = 0;
+			BranchTargetBuffer1[i][j].tag = 0;
+			BranchTargetBuffer1[i][j].valid = 0;
+			BranchTargetBuffer1[i][j].lruBits = 0;
+		}
+	}
+	for(int i=0; i<BTB_SET_SIZE; i++) {
+		for(int j=0; j<BTB_K_SIZE; j++) {
+			BranchTargetBuffer2[i][j].target = 0;
+			BranchTargetBuffer2[i][j].tag = 0;
+			BranchTargetBuffer2[i][j].valid = 0;
+			BranchTargetBuffer2[i][j].lruBits = 0;
 		}
 	}
 }
