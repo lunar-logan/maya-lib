@@ -16,9 +16,12 @@ const long LIMIT = 1000000000;
 const int BHR_SIZE = 10; // 10-bit BHR
 const int PHT_SIZE = 1024; //PHT SIZE 2**10
 const unsigned int BHRT_SIZE = 1024; // requires 4 bits of LSB of the IARG_INS_PTR
+const int BTB_SET_SIZE = 256;
+const int BTB_K_SIZE = 4;
 
 //UINT64 _references = 0, _predicts = 0;
 UINT64 _condInstCount = 0; //Conditional instructions count
+UINT64 _indirectBranchCount = 0; // Indirect branch count
 UINT64 _parInsCount = 0; //Rest instructions count
 
 //Misprediction counters for various predictors
@@ -27,6 +30,8 @@ UINT64 _mispredicitionSAgCount = 0;
 UINT64 _mispredicitionGAgCount = 0;
 UINT64 _mispredicitionGshareCount = 0;
 UINT64 _mispredicitionHybridCount = 0;
+UINT64 _mispredicitionBTBT1Count = 0;
+UINT64 _mispredicitionBTBT2Count = 0;
 
 //BHT, PHT for Bimodal
 INT8 patternHistoryTableBimodal[PHT_SIZE+1];
@@ -48,13 +53,22 @@ INT8 patternHistoryTableGshare[PHT_SIZE+1];
 //Hybrid shares Branch History Register table with SAg predictor
 INT8 patternHistoryTableHybrid[PHT_SIZE+1];
 
+//BTB
+typedef struct _BTB {
+	UINT32 tag;
+	UINT32 target;
+	INT8 valid; //Valid bits
+} BTB, *ptrBTB;
+BTB BranchTargetBuffer[BTB_SET_SIZE][BTB_K_SIZE]; //4-way set(256) associative
 
+//Some helper declarations
 LOCALVAR ofstream *outfile;
 clock_t start;
 
 //Functions declarations
 VOID CondBranch(ADDRINT,BOOL);
 void PrematureExitRoutine(VOID);
+VOID IndirectBranch(ADDRINT, BOOL, ADDRINT);
 
 VOID doCount() {
 	_parInsCount ++; 
@@ -65,7 +79,13 @@ VOID doCount() {
 }
 
 VOID Instruction(INS ins, VOID *v) {
-	if(INS_IsBranchOrCall(ins) && INS_HasFallThrough(ins)) {
+	if(INS_IsIndirectBranchOrCall(ins)) {
+		INS_InsertPredicatedCall(ins, IPOINT_BEFORE, 
+			(AFUNPTR)IndirectBranch,
+			IARG_INST_PTR,
+			IARG_BRANCH_TAKEN,
+			IARG_BRANCH_TARGET_ADDR, IARG_END);
+	} else if(INS_IsBranchOrCall(ins) && INS_HasFallThrough(ins)) {
 		INS_InsertPredicatedCall(ins, IPOINT_BEFORE, 
 								 (AFUNPTR)CondBranch,
 								 IARG_INST_PTR,
@@ -189,6 +209,31 @@ VOID CondBranch(ADDRINT ip, BOOL taken) {
 
 	globalBranchHistory = (((((globalBranchHistory << 1)|taken)) & 0x3ff) % BHR_SIZE);
 }
+VOID IndirectBranch(ADDRINT ip, BOOL taken, ADDRINT target) {
+	_indirectBranchCount++; //Counts conditional branch instructions
+	if((_parInsCount + _indirectBranchCount) > LIMIT) {
+		PrematureExitRoutine();
+		exit(0);
+	}
+	UINT8 setIndex = (ip^globalBranchHistory)%BTB_SET_SIZE; //LocAL modulo hash routine
+	UINT8 assocIndex = UINT8(ip%BTB_K_SIZE);
+	if(BranchTargetBuffer[setIndex][assocIndex].target != 0) {
+		//Branch exists
+		if(BranchTargetBuffer[setIndex][assocIndex].target != target && taken) {
+			_mispredicitionBTBT2Count ++;
+			//should use LRU here ??
+			BranchTargetBuffer[setIndex][assocIndex].target = target;
+			BranchTargetBuffer[setIndex][assocIndex].tag = ip;
+		}
+	} else {
+		//Branch do not exist
+		if(taken) {
+			BranchTargetBuffer[setIndex][assocIndex].target = target;
+			BranchTargetBuffer[setIndex][assocIndex].tag = ip;
+		}
+	}
+}
+
 /*
 KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool",
     "o", "inscount.out", "specify output file name");
@@ -226,8 +271,14 @@ VOID Fini(INT32 code, VOID *v)
 	*outfile << "No. of Mispredictions # "<< _mispredicitionHybridCount << endl;
 	*outfile << "Accuracy # "<<(1.0 - _mispredicitionHybridCount/double(_condInstCount))*100.0 << "%" << endl;
 
+	//BTB Type 2
+	*outfile << endl << "Branch Target Buffer (Type 2) statistics" << endl;
+	*outfile << "No. of Indirect Branch Instructions # " << _indirectBranchCount << endl;
+	*outfile << "No. of Mispredictions # "<< _mispredicitionBTBT2Count << endl;
+	*outfile << "Accuracy # "<<(1.0 - _mispredicitionBTBT2Count/double(_indirectBranchCount))*100.0 << "%" << endl;
+	
 	clock_t end = clock();
-	*outfile << endl << "Analysis stats genrated in # " << double(end-start)/1000.0 <<" seconds " << endl;
+	*outfile << endl << "Analysis stats generated in # " << double(end-start)/1000.0 <<" seconds " << endl;
 }
 void PrematureExitRoutine() {
 	*outfile << "Premature Exit Routine "<< endl;
@@ -261,8 +312,14 @@ void PrematureExitRoutine() {
 	*outfile << "No. of Mispredictions # "<< _mispredicitionHybridCount << endl;
 	*outfile << "Accuracy # "<<(1.0 - _mispredicitionHybridCount/double(_condInstCount))*100.0 << "%" << endl;
 
+	//BTB Type 2
+	*outfile << endl << "Branch Target Buffer (Type 2) statistics" << endl;
+	*outfile << "No. of Indirect Branch Instructions # " << _indirectBranchCount << endl;
+	*outfile << "No. of Mispredictions # "<< _mispredicitionBTBT2Count << endl;
+	*outfile << "Accuracy # "<<(1.0 - _mispredicitionBTBT2Count/double(_indirectBranchCount))*100.0 << "%" << endl;
+	
 	clock_t end = clock();
-	*outfile << endl << "Analysis stats genrated in # " << double(end-start)/1000.0 <<" seconds " << endl;
+	*outfile << endl << "Analysis stats generated in # " << double(end-start)/1000.0 <<" seconds " << endl;
 }
 
 /* ===================================================================== */
@@ -300,6 +357,13 @@ void init_TABLES() {
 	}
 	for(int j=0; j <=PHT_SIZE; j++) {
 		patternHistoryTableHybrid[j] = 0;
+	}
+	for(int i=0; i<BTB_SET_SIZE; i++) {
+		for(int j=0; j<BTB_K_SIZE; j++) {
+			BranchTargetBuffer[i][j].target = 0;
+			BranchTargetBuffer[i][j].tag = 0;
+			BranchTargetBuffer[i][j].valid = 0;
+		}
 	}
 }
 int main(int argc, char * argv[])
