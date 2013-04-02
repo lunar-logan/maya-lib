@@ -218,7 +218,7 @@ VOID IndirectBranch(ADDRINT ip, BOOL taken, ADDRINT target) {
 		PrematureExitRoutine();
 		exit(0);
 	}
-	UINT8 setIndex = (ip^globalBranchHistory)%BTB_SET_SIZE; //LocAL modulo hash routine
+	UINT8 setIndex = ((ip^globalBranchHistory) & 0xff);//%BTB_SET_SIZE; //LocAL modulo hash routine
 	int lru = 0;
 	UINT16 lruMin = LRU_LIMIT + 4;
 	BOOL found = FALSE;
