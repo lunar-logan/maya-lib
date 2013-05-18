@@ -14,3 +14,15 @@ public class ArrayUtil {
             public RType invoke(IType v);
         }
     }
+/*
+Usage:
+public static void main(String[] args) {
+        Object[] a = {2, 4, 5, 6};
+        System.out.println(Arrays.toString(ArrayUtil.map(a, new ArrayUtil.Method<Integer, String>() {
+            @Override
+            public String invoke(Integer v) {
+                return "value=" + v;  //To change body of implemented methods use File | Settings | File Templates.
+            }
+        })));
+    }
+   */
