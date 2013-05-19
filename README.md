@@ -1,3 +1,4 @@
 maya-lib
 ========
-http://www.cse.iitk.ac.in/users/mainakc/2013Spring/lectures422.html/
+
+`My personal collection of code I wrote and used in some of my projects or just for fun`
