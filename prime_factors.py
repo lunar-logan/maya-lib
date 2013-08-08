@@ -1,3 +1,4 @@
+#Finds and return a list of all the prime factors of a given integer
 import collections
 def pf(x):
 	i, c, factors = 0, x, collections.Counter()
