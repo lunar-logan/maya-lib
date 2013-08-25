@@ -7,3 +7,13 @@ def substitute(msg, key=1, symbols = "abcdefghijklmnopqrstuvwxyz"):
 			encMsg += symbols[index%n]
 		else: encMsg += c
 	return encMsg
+
+def signature(a):
+	place, signature = {}, ""
+	for i in xrange(len(a)):
+		if a[i] in place:
+			signature += str(place[a[i]])
+		else:
+			place[a[i]] = i
+			signature += str(i)
+	return signature
