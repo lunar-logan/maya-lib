@@ -106,6 +106,34 @@ public:
 		}
 		return str.str();
 	}
+	Node* find(int key) {
+		Node *t = NULL;
+		/*if(sz == 0) {
+			return t;
+		}*/
+		t = head;
+		for(;t != NULL && t->data != key;) {
+			t = t->next;
+		}
+		return t;
+	}
+	void remove(Node *t) {
+		if(t != NULL) {
+			Node *p = t->prev;
+			Node *n = t->next;
+			if(p != NULL)
+				p->next = n;
+			else  // t is head
+				head = n;
+			
+			if(n != NULL)
+				n->prev = p;
+			else //Either t is tail or list contains just one element
+				tail = p;
+			delete t;
+			--sz;
+		}
+	}
 private:
 	Node *head;
 	Node *tail;
@@ -116,17 +144,17 @@ private:
 		n->next = NULL;
 		n->prev = NULL;
 	}
-	void remove(Node *t) {
-		if(t != NULL) {
-			Node *p = t->prev;
-			Node *n = t->next;
-			if(p != NULL)
-				p->next = n;
-			if(n != NULL)
-				n->prev = p;
-			delete t;
-		}
-	}
+	// void remove(Node *t) {
+	// 	if(t != NULL) {
+	// 		Node *p = t->prev;
+	// 		Node *n = t->next;
+	// 		if(p != NULL)
+	// 			p->next = n;
+	// 		if(n != NULL)
+	// 			n->prev = p;
+	// 		delete t;
+	// 	}
+	// }
 };
 
 
@@ -139,6 +167,21 @@ int main() {
 	for(int i=0; i<20; i+=2) {
 		l.insert(i, i+9);
 		cout << l.toString() << endl;
+	}
+	cout << "\n\n";
+	for(int i=-1; i<l.size()+4; i+= 1) {
+		Node *t = l.find(i*i);
+		if(t == NULL) cout << i*i << " not found \n";
+		else {
+			cout << "\n";
+			int v = t->data;
+//			cout << "EXT\n";
+			l.remove(t);
+//			cout << "REM\n";
+			l.addFirst(v);
+//			cout << "ADD\n";
+		}
+		cout << l.toString() << "; Current Size: " << l.size() << endl;
 	}
 	cout << endl << " -------------------------------------------------- \n";
 	int e;
