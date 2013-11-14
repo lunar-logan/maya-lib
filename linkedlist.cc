@@ -93,7 +93,6 @@ public:
 			} 
 			if(r != NULL) {
 				remove(r);
-				--sz;
 			}
 		}
 	}
